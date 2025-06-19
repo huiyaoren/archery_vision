@@ -46,17 +46,17 @@ def process_video(video_path, user_options):
     
     # 添加脊柱倾角警告标记
     spine_angle_data = angles[['帧号', '脊柱倾角']].copy()
-    spine_angle_data['警告'] = spine_angle_data['脊柱倾角'].apply(lambda x: '正常')
+    spine_angle_data['警告'] = spine_angle_data['脊柱倾角'].apply(lambda x: '角度')
 
     # 添加参考线数据
     reference_data = pd.DataFrame({
         '帧号': [angles['帧号'].min(), angles['帧号'].max()],
-        '上限': [5, 5],
-        '下限': [-5, -5]
+        '+5°警戒线': [5, 5],
+        '-5°警戒线': [-5, -5]
     })
     spine_angle_data = pd.concat([
-        reference_data[['帧号', '上限']].rename(columns={'上限': '脊柱倾角'}).assign(警告='上限'),
-        reference_data[['帧号', '下限']].rename(columns={'下限': '脊柱倾角'}).assign(警告='下限'),
+        reference_data[['帧号', '+5°警戒线']].rename(columns={'+5°警戒线': '脊柱倾角'}).assign(警告='+5°警戒线'),
+        reference_data[['帧号', '-5°警戒线']].rename(columns={'-5°警戒线': '脊柱倾角'}).assign(警告='-5°警戒线'),
         spine_angle_data
     ])
 
@@ -120,9 +120,9 @@ def create_ui():
                         y="脊柱倾角",
                         color="警告",
                         color_map={
-                            "正常": "#2196f3",
-                            "上限": "#ff0000",
-                            "下限": "#ff0000",
+                            "角度": "#2196f3",
+                            "+5°警戒线": "#ff0000",
+                            "-5°警戒线": "#ff0000",
                         },
                         overlay_point=True,
                     )
@@ -169,8 +169,6 @@ def create_ui():
         ).then(
             fn=update_cursor, inputs=[phase_plot, slider], outputs=[phase_plot]
         )
-    # todo 脊柱倾角图表增加+-5°的参考线
-    # todo 脊柱倾角超出范围时，在图表和当前帧数据中高亮显示
 
     # todo 头部姿态角 头部与脊柱的夹角：
     # 关键错误姿势示例
