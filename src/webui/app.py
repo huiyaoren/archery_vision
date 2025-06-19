@@ -8,7 +8,7 @@ from src.models.yolo_bow import YoloBow
 def process_video(video_path, user_options):
     """处理上传的视频文件"""
     if not video_path:
-        return "请先上传视频", *[None]*8  # 修改为8个None，总共9个返回值
+        return "请先上传视频", *[None]*9  # 修改为9个None，总共10个返回值
 
     # 获取输入视频的文件名（不含扩展名）
     base_name = os.path.splitext(os.path.basename(video_path))[0]
@@ -22,7 +22,8 @@ def process_video(video_path, user_options):
     YoloBow.process_video(video_path, output_path, 
                             model_name=user_options.get('model_dropdown', 'yolo11x-pose'), 
                             device_name=user_options.get('device_dropdown', 'auto'),
-                            batch_size=user_options.get('batch_size', 8))
+                            batch_size=user_options.get('batch_size', 8),
+                            bow_hand=user_options.get('bow_hand', 'left'))
     # 读取CSV数据
     angles = pd.read_csv(csv_path, encoding='utf8')
     
@@ -60,6 +61,10 @@ def process_video(video_path, user_options):
         spine_angle_data
     ])
 
+    # 添加前手肩角数据
+    front_shoulder_data = angles[['帧号', '前手肩角']].copy()
+    front_shoulder_data['警告'] = front_shoulder_data['前手肩角'].apply(lambda x: '角度')
+
     velocity_data = angles[['帧号', '角速度']]  # 角速度数据
     acceleration_data = angles[['帧号', '角加速度']]  # 角加速度数据
     phase_data = angles[['双臂姿态角', '角速度']]  # 相位图数据
@@ -68,7 +73,7 @@ def process_video(video_path, user_options):
     slider = gr.Slider(minimum=0, maximum=len(angles), value=5, step=1, label="拖动滑块移动游标", interactive=True)
     initial_frame = Video.extract_frame(output_path, 5)
 
-    return ("处理完成", output_path, slider, initial_frame, arm_angle_data, spine_angle_data, velocity_data, acceleration_data, phase_data)
+    return ("处理完成", output_path, slider, initial_frame, arm_angle_data, spine_angle_data, velocity_data, acceleration_data, phase_data, front_shoulder_data)
 
 
 # 视频播放时更新游标线
@@ -127,6 +132,8 @@ def create_ui():
                         overlay_point=True,
                     )
                 with gr.Row():
+                    front_shoulder_plot = gr.LinePlot(label="前手肩角", x="帧号", y="前手肩角", overlay_point=True)
+                with gr.Row():
                     angular_velocity_plot = gr.LinePlot(label="双臂角速度", x="帧号", y="角速度")
                     angular_acceleration_plot = gr.LinePlot(label="双臂角加速度", x="帧号", y="角加速度")
                 with gr.Row():
@@ -143,7 +150,7 @@ def create_ui():
         ).then(
             fn=process_video,
             inputs=[input_video, user_options],
-            outputs=[status_text, output_video, slider, current_frame, arm_plot, spine_plot, angular_velocity_plot, angular_acceleration_plot, phase_plot]
+            outputs=[status_text, output_video, slider, current_frame, arm_plot, spine_plot, angular_velocity_plot, angular_acceleration_plot, phase_plot, front_shoulder_plot]
         )
         
         slider.change(

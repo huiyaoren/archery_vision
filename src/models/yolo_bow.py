@@ -9,7 +9,7 @@ from src.core.log import logger
 
 class YoloBow:
     @classmethod
-    def process_video(cls, input_path, output_path, model_name='yolo11x-pose', device_name='auto', batch_size=12):
+    def process_video(cls, input_path, output_path, model_name='yolo11x-pose', device_name='auto', batch_size=12, bow_hand='left'):
         start_time = datetime.now()
         logger.info(f"▶️ 开始处理 {input_path} → {output_path}")
 
@@ -19,24 +19,26 @@ class YoloBow:
         logger.info(f"✅ 加载 {model.model_name} 模型到 {device} 设备")
 
         video = Video(input_path, output_path)
-        # 数据记录 双臂姿态角、脊柱倾角、技术环节、帧序号
-        records = pd.DataFrame(columns=['帧号', '双臂姿态角', '脊柱倾角', '动作环节'])
+        # 数据记录 添加前手肩角
+        records = pd.DataFrame(columns=['帧号', '双臂姿态角', '脊柱倾角', '前手肩角', '动作环节'])
 
         # 处理循环
         for processed, (frame, result) in enumerate(video.process_frames_batch(model, batch_size)):
             # 分析姿态
-            frame, arm_angle, spine_angle, action_state = Pose.analyze_frame(frame, result)
+            frame, arm_angle, spine_angle, front_shoulder_angle, action_state = Pose.analyze_frame(frame, result, bow_hand)
             
             # 添加文本信息
             frame = Video.draw_texts(frame, (
                 f"processed: {processed}", 
                 f"Arm Angle: {arm_angle:.2f} deg",
-                f"Spine Tilt: {spine_angle:.2f} deg", 
+                f"Spine Tilt: {spine_angle:.2f} deg",
+                f"Front Shoulder: {front_shoulder_angle:.2f} deg",
                 f"Technical process: {action_state.value}"
             ))
 
             # 记录数据
-            records.loc[len(records)] = [processed, round(arm_angle, 2), round(spine_angle, 2), action_state.value]
+            records.loc[len(records)] = [processed, round(arm_angle, 2), round(spine_angle, 2), 
+                                       round(front_shoulder_angle, 2), action_state.value]
             # 写入帧
             video.write_frame(frame)
 

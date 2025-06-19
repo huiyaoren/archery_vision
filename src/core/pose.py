@@ -63,11 +63,12 @@ class Pose:
             return ActionState.UNKNOWN
 
     @classmethod
-    def analyze_frame(cls, frame, result):
+    def analyze_frame(cls, frame, result, bow_hand):
         """分析单帧中的姿态数据"""
         frame = result.plot(boxes=False)
         arm_angle = 0
         spine_angle = 0
+        front_shoulder_angle = 0  # 添加前手肩角
         action_state = ActionState.UNKNOWN
 
         keypoints = result.keypoints
@@ -94,16 +95,30 @@ class Pose:
                 if spine_angle > 180:
                     spine_angle = spine_angle - 360
 
-                # 绘制脊柱线段
+                # 根据持弓手判断前手
+                if bow_hand == 'left':
+                    front_elbow = right_elbow
+                    front_shoulder = right_shoulder
+                    front_hip = right_hip
+                else:
+                    front_elbow = left_elbow
+                    front_shoulder = left_shoulder
+                    front_hip = left_hip
+                # 计算前手肩角（肘关节中心→肩关节中心→髋关节中心）
+                front_shoulder_angle = cls.calculate_angle(front_shoulder, front_elbow, front_shoulder, front_hip)
+
+                # 绘制脊柱线段和前手肩部连线
                 cls.draw_line(frame, hip_midpoint, shoulder_midpoint)
+                cls.draw_line(frame, front_elbow, front_shoulder, color=(0, 255, 0))  # 绿色
+                cls.draw_line(frame, front_shoulder, front_hip, color=(0, 255, 0))    # 绿色
 
                 # 计算双臂姿态角并判断动作环节
                 arm_angle = cls.calculate_angle(left_shoulder, left_elbow, right_shoulder, right_elbow)
                 action_state = cls.judge_action(arm_angle)
 
-        return frame, arm_angle, spine_angle, action_state
+        return frame, arm_angle, spine_angle, front_shoulder_angle, action_state
 
     @staticmethod
-    def draw_line(frame, point_1, point_2):
-        """绘制线段"""
-        cv2.line(frame, (int(point_1[0]), int(point_1[1])), (int(point_2[0]), int(point_2[1])), (255, 0, 0), 2)
+    def draw_line(frame, point_1, point_2, color=(255, 0, 0)):
+        """绘制线段，允许自定义颜色"""
+        cv2.line(frame, (int(point_1[0]), int(point_1[1])), (int(point_2[0]), int(point_2[1])), color, 2)
